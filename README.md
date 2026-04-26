@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Field Expedition Platform
 
-## Getting Started
+Next.js (JavaScript) application for map-driven field research across Nepal, combining:
 
-First, run the development server:
+- Interactive route exploration on Leaflet + OpenStreetMap (free)
+- Location-specific document viewing (PDF + DOCX)
+- Tabbed learning workflow (Prospectus, Route Briefing, Documents, Notes)
+- Notes anchored to document page numbers
+- Auth-gated upload simulation for tagged location documents
+
+## Core Features
+
+- Homepage route map with custom location markers:
+	Kathmandu -> Chitwan -> Pokhara -> Marpha -> Jomsom -> Kagbeni -> Ghami -> Tsarang -> Lo Manthang
+- Clickable route segments with floating insight panel:
+	route title, elevation transition, climate transition, and key observations
+- Location cards below map with image, elevation, temperature range, and summary
+- Dynamic location pages at `/location/[slug]`:
+	left sidebar tabs + central document viewer + notes panel
+- Document viewer:
+	- PDF rendered with `react-pdf` in vertical page stack
+	- DOCX converted to HTML with `mammoth`
+
+## Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Build for production:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```bash
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Notes
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Uploads and notes are persisted in browser `localStorage`.
+- Authentication is represented by a navbar login toggle to simulate researcher access.
+- Sample PDF files are included in `public/docs/` for immediate document viewer testing.
