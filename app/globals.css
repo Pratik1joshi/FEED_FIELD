@@ -532,7 +532,7 @@ a {
 }
 
 .document-viewer {
-  max-height: calc(100vh - 185px);
+  max-height: calc(100vh - 115px);
   overflow: auto;
 }
 

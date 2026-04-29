@@ -51,7 +51,77 @@ function isWithinNepalBounds(coordinates) {
   });
 }
 
-async function fetchRoadGeometry(fromCoordinate, toCoordinate, signal) {
+function findNearestLocation(toCoordinate, allLocations, excludeLocations = []) {
+  let nearest = null;
+  let minDistance = Infinity;
+  const excludedSlugs = new Set(
+    (Array.isArray(excludeLocations) ? excludeLocations : [excludeLocations])
+      .filter(Boolean)
+      .map((location) => location.slug),
+  );
+
+  allLocations.forEach((location) => {
+    if (excludedSlugs.has(location.slug)) {
+      return;
+    }
+
+    const distance = haversineDistanceKm(toCoordinate, location.coordinates);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = location;
+    }
+  });
+
+  return nearest;
+}
+
+function createCurvyFallbackCoordinates(fromCoordinate, toCoordinate, pointCount = 24) {
+  const [fromLng, fromLat] = fromCoordinate;
+  const [toLng, toLat] = toCoordinate;
+  const deltaLng = toLng - fromLng;
+  const deltaLat = toLat - fromLat;
+  const distance = Math.hypot(deltaLng, deltaLat);
+
+  if (distance === 0) {
+    return [fromCoordinate, toCoordinate];
+  }
+
+  const unitPerpLng = -deltaLat / distance;
+  const unitPerpLat = deltaLng / distance;
+  const bendMagnitude = Math.min(Math.max(distance * 0.22, 0.03), 0.25);
+  const bendDirection = (fromLng + fromLat + toLng + toLat) % 2 >= 1 ? 1 : -1;
+
+  const controlPoint1 = [
+    fromLng + deltaLng * 0.33 + unitPerpLng * bendMagnitude * bendDirection,
+    fromLat + deltaLat * 0.33 + unitPerpLat * bendMagnitude * bendDirection,
+  ];
+  const controlPoint2 = [
+    fromLng + deltaLng * 0.66 - unitPerpLng * bendMagnitude * 0.6 * bendDirection,
+    fromLat + deltaLat * 0.66 - unitPerpLat * bendMagnitude * 0.6 * bendDirection,
+  ];
+
+  const coordinates = [];
+  for (let index = 0; index <= pointCount; index += 1) {
+    const t = index / pointCount;
+    const inverseT = 1 - t;
+    const lng =
+      inverseT * inverseT * inverseT * fromLng +
+      3 * inverseT * inverseT * t * controlPoint1[0] +
+      3 * inverseT * t * t * controlPoint2[0] +
+      t * t * t * toLng;
+    const lat =
+      inverseT * inverseT * inverseT * fromLat +
+      3 * inverseT * inverseT * t * controlPoint1[1] +
+      3 * inverseT * t * t * controlPoint2[1] +
+      t * t * t * toLat;
+
+    coordinates.push([lng, lat]);
+  }
+
+  return coordinates;
+}
+
+async function fetchRoadGeometry(fromCoordinate, toCoordinate, signal, retryCoordinate = null) {
   const [fromLng, fromLat] = fromCoordinate;
   const [toLng, toLat] = toCoordinate;
 
@@ -60,29 +130,47 @@ async function fetchRoadGeometry(fromCoordinate, toCoordinate, signal) {
     `${fromLng},${fromLat};${toLng},${toLat}` +
     `?overview=full&alternatives=false&steps=false&geometries=geojson`;
 
-  const response = await fetch(url, { signal });
-  if (!response.ok) {
+  try {
+    const response = await fetch(url, { signal });
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json();
+    const routeCoordinates = payload?.routes?.[0]?.geometry?.coordinates;
+    if (!routeCoordinates?.length) {
+      return null;
+    }
+
+    // Allow some tolerance for routes that may briefly go outside Nepal bounds
+    // but don't reject entirely as some valid mountain routes might do this
+    const outOfBoundsPoints = routeCoordinates.filter(([lng, lat]) => {
+      return (
+        lng < NEPAL_BOUNDS.minLng - 0.5 ||
+        lng > NEPAL_BOUNDS.maxLng + 0.5 ||
+        lat < NEPAL_BOUNDS.minLat - 0.5 ||
+        lat > NEPAL_BOUNDS.maxLat + 0.5
+      );
+    });
+
+    // Reject only if majority of route is outside bounds
+    if (outOfBoundsPoints.length > routeCoordinates.length * 0.5) {
+      return null;
+    }
+
+    const straightDistance = haversineDistanceKm(fromCoordinate, toCoordinate);
+    const routeDistance = polylineDistanceKm(routeCoordinates);
+
+    // For mountain terrain, allow roads up to 5x the straight-line distance
+    if (straightDistance > 0 && routeDistance > straightDistance * 5) {
+      return null;
+    }
+
+    return routeCoordinates;
+  } catch (err) {
+    // Network or abort errors are expected during cleanup
     return null;
   }
-
-  const payload = await response.json();
-  const routeCoordinates = payload?.routes?.[0]?.geometry?.coordinates;
-  if (!routeCoordinates?.length) {
-    return null;
-  }
-
-  if (!isWithinNepalBounds(routeCoordinates)) {
-    return null;
-  }
-
-  const straightDistance = haversineDistanceKm(fromCoordinate, toCoordinate);
-  const routeDistance = polylineDistanceKm(routeCoordinates);
-
-  if (straightDistance > 0 && routeDistance > straightDistance * 3.2) {
-    return null;
-  }
-
-  return routeCoordinates;
 }
 
 const defaultSegmentStyle = {
@@ -146,6 +234,9 @@ export default function RouteMap({
     L.control.zoom({ position: "topright" }).addTo(map);
 
     segmentsWithCoordinates.forEach((segment) => {
+      const isCurvyForced =
+        segment.id === "jomsom-kagbeni" ||
+        (segment.from === "jomsom" && segment.to === "kagbeni");
       const fallbackCoordinates = segment.coordinates;
       const fallbackLatLngCoordinates = fallbackCoordinates.map(([lng, lat]) => [
         lat,
@@ -180,26 +271,115 @@ export default function RouteMap({
 
       layerStore.segments[segment.id] = segmentLayer;
 
-      fetchRoadGeometry(
-        fallbackCoordinates[0],
-        fallbackCoordinates[1],
-        routeAbortController.signal,
-      )
-        .then((roadCoordinates) => {
-          if (!roadCoordinates || !map.hasLayer(segmentLayer)) {
-            return;
-          }
+      const attemptRoute = async () => {
+        if (isCurvyForced) {
+          const roadCoordinates = createCurvyFallbackCoordinates(
+            fallbackCoordinates[0],
+            fallbackCoordinates[1],
+          );
 
-          const roadLatLngCoordinates = roadCoordinates.map(([lng, lat]) => [
-            lat,
-            lng,
-          ]);
+          if (!map.hasLayer(segmentLayer)) return;
+          const roadLatLngCoordinates = roadCoordinates.map(([lng, lat]) => [lat, lng]);
           segmentLayer.setLatLngs(roadLatLngCoordinates);
           segmentLayer.bringToFront();
-        })
-        .catch(() => {
-          // Keep straight fallback when routing is unavailable or aborted.
-        });
+          return;
+        }
+
+        let roadCoordinates = await fetchRoadGeometry(
+          fallbackCoordinates[0],
+          fallbackCoordinates[1],
+          routeAbortController.signal,
+        );
+
+        // If no direct route, try routing to nearby waypoints along the destination
+        if (!roadCoordinates) {
+          // Try nearest location to destination (single-leg)
+          const nearestLocation = findNearestLocation(
+            fallbackCoordinates[1],
+            locations,
+            [
+              locations.find((location) => location.slug === segment.from),
+              locations.find((location) => location.slug === segment.to),
+            ],
+          );
+          if (nearestLocation && nearestLocation.coordinates) {
+            roadCoordinates = await fetchRoadGeometry(
+              fallbackCoordinates[0],
+              nearestLocation.coordinates,
+              routeAbortController.signal,
+            );
+          }
+        }
+
+        // If still no route, attempt two-leg routing via nearby intermediate locations.
+        // Try up to `k` nearest candidate intermediates (excluding segment endpoints).
+        if (!roadCoordinates && locations.length > 0) {
+          const fromCoord = fallbackCoordinates[0];
+          const toCoord = fallbackCoordinates[1];
+          const k = 3;
+          const excluded = new Set([
+            segment.from,
+            segment.to,
+          ]);
+
+          const candidates = locations
+            .filter((loc) => !excluded.has(loc.slug) && loc.coordinates)
+            .map((loc) => ({
+              loc,
+              d: haversineDistanceKm(toCoord, loc.coordinates),
+            }))
+            .sort((a, b) => a.d - b.d)
+            .slice(0, k)
+            .map((x) => x.loc);
+
+          for (let i = 0; i < candidates.length && !roadCoordinates; i += 1) {
+            const candidate = candidates[i];
+            try {
+              const leg1 = await fetchRoadGeometry(fromCoord, candidate.coordinates, routeAbortController.signal);
+              const leg2 = await fetchRoadGeometry(candidate.coordinates, toCoord, routeAbortController.signal);
+              if (leg1 && leg1.length && leg2 && leg2.length) {
+                // Combine legs, avoiding duplicate candidate point
+                const combined = [...leg1];
+                if (combined.length && leg2.length) {
+                  const last = combined[combined.length - 1];
+                  const firstOfLeg2 = leg2[0];
+                  if (last[0] === firstOfLeg2[0] && last[1] === firstOfLeg2[1]) {
+                    combined.push(...leg2.slice(1));
+                  } else {
+                    combined.push(...leg2);
+                  }
+                }
+                roadCoordinates = combined;
+                break;
+              }
+            } catch (e) {
+              // ignore and try next candidate
+            }
+          }
+        }
+
+        if (!roadCoordinates) {
+          roadCoordinates = createCurvyFallbackCoordinates(
+            fallbackCoordinates[0],
+            fallbackCoordinates[1],
+          );
+        }
+
+        if (!map.hasLayer(segmentLayer)) {
+          return;
+        }
+
+        const roadLatLngCoordinates = roadCoordinates.map(([lng, lat]) => [
+          lat,
+          lng,
+        ]);
+        segmentLayer.setLatLngs(roadLatLngCoordinates);
+        segmentLayer.bringToFront();
+      };
+
+      attemptRoute().catch(() => {
+        // Keep straight fallback when routing is unavailable or aborted.
+      });
     });
 
     layerStore.markers = locations.map((location, index) => {
