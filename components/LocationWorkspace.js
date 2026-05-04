@@ -16,11 +16,24 @@ export default function LocationWorkspace({ location, defaultDocuments }) {
   const { uploadedDocuments } = useAppState();
   const [selectedDocId, setSelectedDocId] = useState(null);
 
+  function documentSortScore(entry) {
+    const title = entry.title?.toLowerCase() ?? "";
+    const type = entry.type?.toLowerCase() ?? "";
+
+    if (title.includes("itinerary") || type.includes("itinerary")) {
+      return 0;
+    }
+
+    return 1;
+  }
+
   const documentsForLocation = useMemo(() => {
     const uploadedForLocation = uploadedDocuments.filter(
       (entry) => entry.locationSlug === location.slug,
     );
-    return [...defaultDocuments, ...uploadedForLocation];
+    return [...defaultDocuments, ...uploadedForLocation].sort(
+      (left, right) => documentSortScore(left) - documentSortScore(right),
+    );
   }, [defaultDocuments, location.slug, uploadedDocuments]);
 
   const activeDocument =
