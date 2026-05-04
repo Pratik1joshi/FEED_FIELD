@@ -29,6 +29,9 @@ export default function RootLayout({ children }) {
         <AppStateProvider>
           <Navbar />
           <div className="page-shell">{children}</div>
+          <footer className="site-footer">
+            This was developed by IHRR (Institute of Himalayan Risk Reduction)
+          </footer>
         </AppStateProvider>
       </body>
     </html>

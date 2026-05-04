@@ -39,6 +39,16 @@ a {
   flex: 1;
 }
 
+.site-footer {
+  width: min(1360px, calc(100% - 2rem));
+  margin: 0 auto 1rem;
+  padding: 0.6rem 0.9rem;
+  border-top: 1px solid rgba(16, 69, 79, 0.12);
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
 .surface-card {
   background: color-mix(in srgb, var(--paper) 88%, #ffffff 12%);
   border: 1px solid color-mix(in srgb, var(--line) 82%, #fff 18%);
@@ -939,6 +949,13 @@ a {
   .page-shell {
     width: min(100% - 1rem, 1360px);
     margin: 0.75rem auto 1.2rem;
+  }
+
+  .site-footer {
+    width: min(100% - 1rem, 1360px);
+    margin-bottom: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.78rem;
   }
 
   .main-nav-wrapper {
