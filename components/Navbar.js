@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/", label: "Expedition Map" },
-  { href: "/location/kathmandu", label: "Field Documents" },
+  { href: "/field-documents", label: "Field Documents" },
 ];
 
 export default function Navbar() {

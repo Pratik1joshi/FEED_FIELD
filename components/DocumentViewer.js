@@ -30,6 +30,7 @@ const DocumentViewer = forwardRef(function DocumentViewer(
   ref,
 ) {
   const [numPages, setNumPages] = useState(0);
+  const [pageWidth, setPageWidth] = useState(0);
   const [docxHtml, setDocxHtml] = useState("");
   const [docxError, setDocxError] = useState("");
   const pageRefs = useRef({});
@@ -49,6 +50,32 @@ const DocumentViewer = forwardRef(function DocumentViewer(
 
     return documentEntry.url;
   }, [documentEntry, isPdf]);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) {
+      return undefined;
+    }
+
+    const updateWidth = () => {
+      const nextWidth = Math.floor(wrapper.clientWidth - 32);
+      setPageWidth(Math.max(280, Math.min(920, nextWidth)));
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
+
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
+
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!documentEntry || !isDocx) {
@@ -124,7 +151,11 @@ const DocumentViewer = forwardRef(function DocumentViewer(
                     pageRefs.current[pageNumber] = node;
                   }}
                 >
-                  <Page pageNumber={pageNumber} width={920} renderTextLayer />
+                  <Page
+                    pageNumber={pageNumber}
+                    width={pageWidth || 920}
+                    renderTextLayer
+                  />
                   <small>Page {pageNumber}</small>
                 </div>
               );
