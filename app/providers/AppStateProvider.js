@@ -35,6 +35,20 @@ export function AppStateProvider({ children }) {
   );
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      return;
+    }
+
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
+      // Ignore registration errors to avoid blocking the app.
+    });
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(
       STORAGE_KEYS.isAuthenticated,
       JSON.stringify(isAuthenticated),

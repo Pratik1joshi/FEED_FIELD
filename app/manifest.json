@@ -1,0 +1,16 @@
+{
+  "name": "Field Expedition Platform",
+  "short_name": "Field Expedition",
+  "description": "Interactive Nepal route map with document-based learning.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2f0e8",
+  "theme_color": "#10454f",
+  "icons": [
+    {
+      "src": "/file.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
