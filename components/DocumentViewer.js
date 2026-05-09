@@ -14,7 +14,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
+  "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
   import.meta.url,
 ).toString();
 
@@ -23,6 +23,23 @@ function dataUrlToArrayBuffer(dataUrl) {
   const binaryString = window.atob(base64);
   const bytes = Uint8Array.from(binaryString, (char) => char.charCodeAt(0));
   return bytes.buffer;
+}
+
+function getPdfDownloadName(documentEntry) {
+  const rawName =
+    documentEntry?.fileName ||
+    (typeof documentEntry?.url === "string"
+      ? documentEntry.url.split("/").pop()
+      : "") ||
+    documentEntry?.title ||
+    "document";
+  const trimmedName = String(rawName).trim() || "document";
+  const withoutQuery = trimmedName.split("?")[0].split("#")[0];
+  const safeName =
+    withoutQuery.replace(/[\\/:*?"<>|]+/g, "").trim() || "document";
+  return safeName.toLowerCase().endsWith(".pdf")
+    ? safeName
+    : `${safeName}.pdf`;
 }
 
 const DocumentViewer = forwardRef(function DocumentViewer(
@@ -50,6 +67,16 @@ const DocumentViewer = forwardRef(function DocumentViewer(
 
     return documentEntry.url;
   }, [documentEntry, isPdf]);
+
+  const pdfDownloadName = useMemo(() => {
+    if (!documentEntry || !isPdf) {
+      return "";
+    }
+
+    return getPdfDownloadName(documentEntry);
+  }, [documentEntry, isPdf]);
+
+  const showPdfDownload = Boolean(isPdf && pdfSource);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -131,7 +158,18 @@ const DocumentViewer = forwardRef(function DocumentViewer(
     <section className="document-viewer surface-card" ref={wrapperRef}>
       <header className="document-viewer-head">
         <h3>{documentEntry.title}</h3>
-        <span>{documentEntry.format.toUpperCase()}</span>
+        <div className="document-viewer-actions">
+          <span>{documentEntry.format.toUpperCase()}</span>
+          {showPdfDownload ? (
+            <a
+              className="document-download"
+              href={pdfSource}
+              download={pdfDownloadName}
+            >
+              Download PDF
+            </a>
+          ) : null}
+        </div>
       </header>
 
       {isPdf ? (

@@ -785,6 +785,47 @@ a {
   font-size: 0.73rem;
 }
 
+.document-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.document-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(130deg, #1f5b63, #2d7b7f 55%, #2b7074);
+  box-shadow: 0 10px 22px rgba(17, 36, 40, 0.18);
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.document-download:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(17, 36, 40, 0.22);
+  filter: brightness(1.02);
+}
+
+.document-download:focus-visible {
+  outline: 2px solid #1f5b63;
+  outline-offset: 2px;
+}
+
+.document-download:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 16px rgba(17, 36, 40, 0.18);
+}
+
 .pdf-page-stack {
   display: grid;
   gap: 1rem;
