@@ -46,3 +46,56 @@ npm run build
 - Uploads and notes are persisted in browser `localStorage`.
 - Authentication is represented by a navbar login toggle to simulate researcher access.
 - Sample PDF files are included in `public/docs/` for immediate document viewer testing.
+
+## 🚀 Offline Support
+
+This app is fully configured as a Progressive Web App (PWA) and works completely offline!
+
+### Key Offline Features
+
+- ✅ **Works Completely Offline** - Access cached content without internet
+- ✅ **Home Screen Installation** - Install as app on iOS, Android, Windows, or Mac
+- ✅ **Automatic Caching** - Documents, images, and pages cached as you browse
+- ✅ **Smart Sync** - Automatically fetches updates when back online
+- ✅ **Offline Indicator** - Yellow banner shows connection status
+- ✅ **30-Day Cache** - Documents and images remain available for 30 days
+
+### Quick Start - Testing Offline
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# In browser DevTools (F12):
+# 1. Go to Application tab
+# 2. Click Service Workers (left sidebar)
+# 3. Check "Offline" checkbox
+# 4. Navigate pages - they load from cache!
+```
+
+### Installation
+
+**iPhone/iPad:**
+1. Open in Safari
+2. Tap Share → Add to Home Screen
+3. Tap Add
+
+**Android:**
+1. Open in Chrome
+2. Tap Menu (⋮) → Install app
+3. Confirm
+
+**Desktop (Chrome/Edge):**
+1. Click install icon in address bar
+2. Confirm installation
+
+### Documentation
+
+For complete offline setup and testing guide, see:
+- [OFFLINE_IMPLEMENTATION_SUMMARY.md](./OFFLINE_IMPLEMENTATION_SUMMARY.md) - Overview
+- [OFFLINE_SUPPORT.md](./OFFLINE_SUPPORT.md) - Complete guide (2000+ words)
+- [OFFLINE_QUICK_START.md](./OFFLINE_QUICK_START.md) - Quick reference
+- [OFFLINE_TESTING_CHECKLIST.md](./OFFLINE_TESTING_CHECKLIST.md) - Testing procedures

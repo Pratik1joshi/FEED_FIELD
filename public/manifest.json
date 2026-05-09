@@ -1,0 +1,78 @@
+{
+  "name": "Field Expedition Platform",
+  "short_name": "IHRR Expeditions",
+  "description": "Interactive Nepal route map with document-based learning",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/globe.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/kathmandu.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/kathmandu.jpg",
+      "sizes": "540x720",
+      "type": "image/jpeg",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/images/pokhara.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide"
+    }
+  ],
+  "categories": ["education", "travel"],
+  "shortcuts": [
+    {
+      "name": "Kathmandu",
+      "short_name": "Kathmandu",
+      "description": "View Kathmandu expedition details",
+      "url": "/location/kathmandu",
+      "icons": [
+        {
+          "src": "/images/kathmandu.jpg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Pokhara",
+      "short_name": "Pokhara",
+      "description": "View Pokhara expedition details",
+      "url": "/location/pokhara",
+      "icons": [
+        {
+          "src": "/images/pokhara.jpg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Upper Mustang",
+      "short_name": "Upper Mustang",
+      "description": "View Upper Mustang expedition details",
+      "url": "/location/upperMustang",
+      "icons": [
+        {
+          "src": "/images/lomanthang.jpg",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
