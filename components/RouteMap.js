@@ -236,6 +236,7 @@ export default function RouteMap({
     segmentsWithCoordinates.forEach((segment) => {
       const isCurvyForced =
         segment.id === "jomsom-kagbeni" ||
+        segment.id === "ghami-tsarang" ||
         (segment.from === "jomsom" && segment.to === "kagbeni");
       const fallbackCoordinates = segment.coordinates;
       const fallbackLatLngCoordinates = fallbackCoordinates.map(([lng, lat]) => [

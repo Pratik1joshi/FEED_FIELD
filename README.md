@@ -41,11 +41,29 @@ npm run dev
 npm run build
 ```
 
+## Authentication & File Storage (Supabase)
+
+This app uses **Supabase** for real authentication and cloud file storage:
+
+- **Admin Login**: Click the footer "Admin Login" button to sign in with your Supabase account
+- **File Uploads**: PDFs and DOCX files are uploaded to Supabase Storage, not stored in browser memory
+- **Persistent Storage**: All uploaded files are backed up on Supabase, not lost on browser refresh
+- **User Sessions**: Authentication state persists across page reloads via Supabase
+
+### Setup Supabase
+
+See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed instructions on:
+1. Creating a Supabase project
+2. Getting your API keys
+3. Creating test users
+4. Setting up file storage
+
 ## Notes
 
-- Uploads and notes are persisted in browser `localStorage`.
-- Authentication is represented by a navbar login toggle to simulate researcher access.
-- Sample PDF files are included in `public/docs/` for immediate document viewer testing.
+- Field notes are persisted in browser `localStorage` (can be moved to Supabase with Row Level Security)
+- Uploaded itinerary PDFs replace the previous itinerary for that location, so the frontend shows only the latest version
+- Sample PDF files are included in `public/docs/` for immediate document viewer testing
+- Service Worker registration is disabled in development to prevent InvalidStateError
 
 ## 🚀 Offline Support
 

@@ -1,12 +1,16 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  fetchDocumentsForUser,
+  signInWithEmail,
+  signOut as supabaseSignOut,
+  supabase,
+} from "@/lib/supabase";
 
 const AppStateContext = createContext(null);
 
 const STORAGE_KEYS = {
-  isAuthenticated: "field-platform-auth",
-  uploadedDocuments: "field-platform-uploaded-documents",
   notesByLocation: "field-platform-notes-by-location",
 };
 
@@ -23,31 +27,72 @@ function safeReadJson(key, fallback) {
   }
 }
 
+function isItineraryDocument(document) {
+  const title = document?.title?.toLowerCase() ?? "";
+  const type = document?.type?.toLowerCase() ?? "";
+
+  return title.includes("itinerary") || type.includes("itinerary");
+}
+
+function getFileNameFromPath(filePath, fallback) {
+  if (!filePath) {
+    return fallback ?? "";
+  }
+
+  const parts = String(filePath).split("/");
+  return parts[parts.length - 1] || fallback || "";
+}
+
+function sanitizeDocumentUrl(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "{}" || trimmed === "[object Object]") {
+    return "";
+  }
+
+  return trimmed;
+}
+
+function normalizeDocumentRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  const url = sanitizeDocumentUrl(row.file_url);
+  const fileNameFallback = url ? url.split("/").pop() : "";
+  const fileName =
+    getFileNameFromPath(row.file_path, fileNameFallback) ||
+    row.title ||
+    "document";
+
+  return {
+    id: row.id,
+    title: row.title,
+    locationSlug: row.location_slug,
+    type: row.document_type,
+    format: row.format,
+    filePath: row.file_path,
+    fileName,
+    url,
+    uploadedAt: row.uploaded_at ?? row.created_at ?? null,
+    userId: row.user_id,
+  };
+}
+
 export function AppStateProvider({ children }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() =>
-    safeReadJson(STORAGE_KEYS.isAuthenticated, false),
-  );
-  const [uploadedDocuments, setUploadedDocuments] = useState(() =>
-    safeReadJson(STORAGE_KEYS.uploadedDocuments, []),
-  );
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [notesByLocation, setNotesByLocation] = useState(() =>
     safeReadJson(STORAGE_KEYS.notesByLocation, {}),
   );
+  const [authError, setAuthError] = useState(null);
 
-  useEffect(() => {
-    window.localStorage.setItem(
-      STORAGE_KEYS.isAuthenticated,
-      JSON.stringify(isAuthenticated),
-    );
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      STORAGE_KEYS.uploadedDocuments,
-      JSON.stringify(uploadedDocuments),
-    );
-  }, [uploadedDocuments]);
-
+  // Sync notes to localStorage
   useEffect(() => {
     window.localStorage.setItem(
       STORAGE_KEYS.notesByLocation,
@@ -55,18 +100,125 @@ export function AppStateProvider({ children }) {
     );
   }, [notesByLocation]);
 
-  function toggleAuth() {
-    setIsAuthenticated((prev) => !prev);
+  // Initialize auth state and listen for changes
+  useEffect(() => {
+    const initializeAuth = async () => {
+      let loadingTimeout = null;
+
+      loadingTimeout = window.setTimeout(() => {
+        setIsLoading(false);
+      }, 4000);
+
+      try {
+        // Check if user is already logged in
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          setUser(session.user);
+          setIsAuthenticated(true);
+          // Fetch uploaded documents for this user
+          await fetchUploadedDocuments(session.user.id);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+      } finally {
+        if (loadingTimeout) {
+          window.clearTimeout(loadingTimeout);
+        }
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        setIsAuthenticated(true);
+        await fetchUploadedDocuments(session.user.id);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        setUploadedDocuments([]);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  async function fetchUploadedDocuments(userId) {
+    try {
+      const { data, error } = await fetchDocumentsForUser(userId);
+      if (error) {
+        console.error("Error fetching documents:", error);
+        return;
+      }
+
+      const normalized = (data ?? [])
+        .map(normalizeDocumentRow)
+        .filter(Boolean);
+      setUploadedDocuments(normalized);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+    }
+  }
+
+  async function signIn(email, password) {
+    setAuthError(null);
+    const { data, error } = await signInWithEmail(email, password);
+    if (error) {
+      setAuthError(error.message);
+      return { error };
+    }
+    return { data };
+  }
+
+  async function signOut() {
+    setAuthError(null);
+    const { error } = await supabaseSignOut();
+    if (error) {
+      setAuthError(error.message);
+      return { error };
+    }
+    setUser(null);
+    setIsAuthenticated(false);
+    setUploadedDocuments([]);
+    return { error: null };
   }
 
   function addUploadedDocument(document) {
-    setUploadedDocuments((prev) => [
-      {
-        ...document,
-        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      },
-      ...prev,
-    ]);
+    const nextDocument = {
+      ...document,
+      id:
+        document?.id ??
+        `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      userId: document?.userId ?? user?.id,
+    };
+
+    setUploadedDocuments((prev) => {
+      if (!isItineraryDocument(nextDocument)) {
+        return [nextDocument, ...prev];
+      }
+
+      return [
+        nextDocument,
+        ...prev.filter(
+          (entry) =>
+            entry.locationSlug !== nextDocument.locationSlug ||
+            !isItineraryDocument(entry),
+        ),
+      ];
+    });
   }
 
   function addNote(locationSlug, note) {
@@ -88,14 +240,18 @@ export function AppStateProvider({ children }) {
 
   const value = useMemo(
     () => ({
+      user,
       isAuthenticated,
+      isLoading,
       uploadedDocuments,
       notesByLocation,
-      toggleAuth,
+      authError,
+      signIn,
+      signOut,
       addUploadedDocument,
       addNote,
     }),
-    [isAuthenticated, uploadedDocuments, notesByLocation],
+    [isAuthenticated, isLoading, uploadedDocuments, notesByLocation, authError, user],
   );
 
   return (

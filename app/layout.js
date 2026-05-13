@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppStateProvider } from "@/app/providers/AppStateProvider";
 import Navbar from "@/components/Navbar";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import SiteFooter from "@/components/SiteFooter";
 import { ServiceWorkerRegistry } from "@/components/ServiceWorkerRegistry";
 
 const manrope = Manrope({
@@ -49,9 +50,7 @@ export default function RootLayout({ children }) {
           <OfflineIndicator />
           <Navbar />
           <div className="page-shell">{children}</div>
-          <footer className="site-footer">
-            This was developed by IHRR (Institute of Himalayan Risk Reduction)
-          </footer>
+          <SiteFooter />
         </AppStateProvider>
       </body>
     </html>

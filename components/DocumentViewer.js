@@ -42,6 +42,19 @@ function getPdfDownloadName(documentEntry) {
     : `${safeName}.pdf`;
 }
 
+function sanitizeDocumentUrl(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "{}" || trimmed === "[object Object]") {
+    return "";
+  }
+
+  return trimmed;
+}
+
 const DocumentViewer = forwardRef(function DocumentViewer(
   { documentEntry },
   ref,
@@ -65,7 +78,7 @@ const DocumentViewer = forwardRef(function DocumentViewer(
       return documentEntry.fileData;
     }
 
-    return documentEntry.url;
+    return sanitizeDocumentUrl(documentEntry.url) || null;
   }, [documentEntry, isPdf]);
 
   const pdfDownloadName = useMemo(() => {
@@ -114,11 +127,16 @@ const DocumentViewer = forwardRef(function DocumentViewer(
     async function convertDocxToHtml() {
       try {
         setDocxError("");
+        const docxUrl = sanitizeDocumentUrl(documentEntry.url);
+        if (!documentEntry.fileData && !docxUrl) {
+          setDocxHtml("");
+          setDocxError("Document link is missing or invalid.");
+          return;
+        }
+
         const arrayBuffer = documentEntry.fileData
           ? dataUrlToArrayBuffer(documentEntry.fileData)
-          : await fetch(documentEntry.url).then((response) =>
-              response.arrayBuffer(),
-            );
+          : await fetch(docxUrl).then((response) => response.arrayBuffer());
 
         const result = await mammoth.convertToHtml({ arrayBuffer });
         setDocxHtml(result.value);
@@ -173,33 +191,37 @@ const DocumentViewer = forwardRef(function DocumentViewer(
       </header>
 
       {isPdf ? (
-        <Document
-          file={pdfSource}
-          loading={<p>Loading PDF pages...</p>}
-          onLoadSuccess={({ numPages: totalPages }) => setNumPages(totalPages)}
-        >
-          <div className="pdf-page-stack">
-            {Array.from({ length: numPages }, (_, index) => {
-              const pageNumber = index + 1;
-              return (
-                <div
-                  className="pdf-page-wrap"
-                  key={pageNumber}
-                  ref={(node) => {
-                    pageRefs.current[pageNumber] = node;
-                  }}
-                >
-                  <Page
-                    pageNumber={pageNumber}
-                    width={pageWidth || 920}
-                    renderTextLayer
-                  />
-                  <small>Page {pageNumber}</small>
-                </div>
-              );
-            })}
-          </div>
-        </Document>
+        pdfSource ? (
+          <Document
+            file={pdfSource}
+            loading={<p>Loading PDF pages...</p>}
+            onLoadSuccess={({ numPages: totalPages }) => setNumPages(totalPages)}
+          >
+            <div className="pdf-page-stack">
+              {Array.from({ length: numPages }, (_, index) => {
+                const pageNumber = index + 1;
+                return (
+                  <div
+                    className="pdf-page-wrap"
+                    key={pageNumber}
+                    ref={(node) => {
+                      pageRefs.current[pageNumber] = node;
+                    }}
+                  >
+                    <Page
+                      pageNumber={pageNumber}
+                      width={pageWidth || 920}
+                      renderTextLayer
+                    />
+                    <small>Page {pageNumber}</small>
+                  </div>
+                );
+              })}
+            </div>
+          </Document>
+        ) : (
+          <p className="doc-viewer-empty">Document link is missing or invalid.</p>
+        )
       ) : null}
 
       {isDocx ? (

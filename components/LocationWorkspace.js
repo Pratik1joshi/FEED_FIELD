@@ -16,6 +16,13 @@ export default function LocationWorkspace({ location, defaultDocuments }) {
   const { uploadedDocuments } = useAppState();
   const [selectedDocId, setSelectedDocId] = useState(null);
 
+  function isItineraryDocument(entry) {
+    const title = entry.title?.toLowerCase() ?? "";
+    const type = entry.type?.toLowerCase() ?? "";
+
+    return title.includes("itinerary") || type.includes("itinerary");
+  }
+
   function documentSortScore(entry) {
     const title = entry.title?.toLowerCase() ?? "";
     const type = entry.type?.toLowerCase() ?? "";
@@ -31,7 +38,20 @@ export default function LocationWorkspace({ location, defaultDocuments }) {
     const uploadedForLocation = uploadedDocuments.filter(
       (entry) => entry.locationSlug === location.slug,
     );
-    return [...defaultDocuments, ...uploadedForLocation].sort(
+
+    const latestUploadedItinerary = uploadedForLocation.find(isItineraryDocument);
+    const defaultWithoutItinerary = defaultDocuments.filter(
+      (entry) => !isItineraryDocument(entry),
+    );
+    const uploadedWithoutItinerary = uploadedForLocation.filter(
+      (entry) => !isItineraryDocument(entry),
+    );
+
+    const mergedDocuments = latestUploadedItinerary
+      ? [latestUploadedItinerary, ...defaultWithoutItinerary, ...uploadedWithoutItinerary]
+      : [...defaultDocuments, ...uploadedForLocation];
+
+    return mergedDocuments.sort(
       (left, right) => documentSortScore(left) - documentSortScore(right),
     );
   }, [defaultDocuments, location.slug, uploadedDocuments]);
