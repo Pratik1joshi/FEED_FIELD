@@ -12,6 +12,28 @@ export function ServiceWorkerRegistry() {
       return undefined;
     }
 
+    const expectedAppUrl = process.env.NEXT_PUBLIC_APP_URL
+      ? String(process.env.NEXT_PUBLIC_APP_URL).replace(/\/+$/, "")
+      : window.location.origin;
+
+    // Only register if current origin matches the expected app URL to avoid
+    // picking up precache manifests from other deployments that cause 404s.
+    if (window.location.origin !== expectedAppUrl) {
+      // Unregister any existing service workers scoped to this origin to avoid
+      // stale precache behavior when the site is served from another domain.
+      void navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((r) => {
+          r.unregister().then((ok) => {
+            if (ok) {
+              console.log("Unregistered service worker due to origin mismatch.");
+            }
+          });
+        });
+      });
+
+      return undefined;
+    }
+
     let intervalId = null;
 
     navigator.serviceWorker

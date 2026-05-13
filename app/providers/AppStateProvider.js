@@ -158,15 +158,18 @@ export function AppStateProvider({ children }) {
 
   async function fetchUploadedDocuments(userId) {
     try {
-      const { data, error } = await fetchDocumentsForUser(userId);
-      if (error) {
-        console.error("Error fetching documents:", error);
+      // Prefer server-side API that uses the service role key to bypass
+      // RLS/read issues that occur when client sessions are inconsistent.
+      const res = await fetch(`/api/documents?userId=${encodeURIComponent(userId)}`);
+      if (!res.ok) {
+        console.error("Document API returned error", res.status);
+        setUploadedDocuments([]);
         return;
       }
 
-      const normalized = (data ?? [])
-        .map(normalizeDocumentRow)
-        .filter(Boolean);
+      const payload = await res.json();
+      const rows = payload?.data ?? [];
+      const normalized = rows.map(normalizeDocumentRow).filter(Boolean);
       setUploadedDocuments(normalized);
     } catch (error) {
       console.error("Error fetching documents:", error);

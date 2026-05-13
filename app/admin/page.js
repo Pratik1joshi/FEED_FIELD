@@ -1,14 +1,58 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import UploadPanel from "@/components/UploadPanel";
+import AuthModal from "@/components/AuthModal";
 import { useAppState } from "@/app/providers/AppStateProvider";
+import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
   const { isAuthenticated, user, uploadedDocuments, isLoading } = useAppState();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkSession() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        if (session) {
+          const expiresAt = session.expires_at; // seconds since epoch
+          if (typeof expiresAt === "number" && Date.now() / 1000 >= expiresAt) {
+            setSessionExpired(true);
+            setAuthOpen(true);
+          }
+        } else {
+          // No session — treat as expired only for admin page access
+          setSessionExpired(true);
+          setAuthOpen(true);
+        }
+      } catch (err) {
+        // On error, open the login modal so the user can re-authenticate
+        if (mounted) {
+          setSessionExpired(true);
+          setAuthOpen(true);
+        }
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="admin-shell">
+      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
       <section className="admin-hero surface-card">
         <div>
           <p className="eyebrow">Admin</p>
@@ -18,6 +62,11 @@ export default function AdminPage() {
             views aligned with the newest source files.
           </p>
           {isLoading ? <p className="admin-loading-text">Checking your admin session...</p> : null}
+          {sessionExpired ? (
+            <p className="admin-notice" style={{ marginTop: '0.75rem' }}>
+              Your session has expired or you are not signed in — please sign in to access admin features.
+            </p>
+          ) : null}
         </div>
 
         <div className="admin-hero-actions">
